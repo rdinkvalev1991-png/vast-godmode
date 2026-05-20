@@ -59,7 +59,7 @@ cd ComfyUI-KJNodes
 git checkout 9d7af919b91838fb22e31ad0107a6ddcf8bd7f3f
 
 echo "=== Install useful dependencies ==="
-pip install simpleeval onnxruntime-gpu piexif ultralytics || true
+pip install simpleeval onnxruntime-gpu piexif ultralytics accelerate opencv-python-headless imageio-ffmpeg numba PyWavelets scipy scikit-image matplotlib pandas tqdm einops || true
 
 echo "=== Install custom node requirements ==="
 cd /workspace/ComfyUI
