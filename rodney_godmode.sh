@@ -23,6 +23,8 @@ mkdir -p /workspace/ComfyUI/models/unet
 mkdir -p /workspace/ComfyUI/models/text_encoders
 mkdir -p /workspace/ComfyUI/models/vae
 mkdir -p /workspace/ComfyUI/models/detection
+mkdir -p /workspace/ComfyUI/models/ultralytics/bbox
+mkdir -p /workspace/ComfyUI/models/ultralytics/segm
 
 cd /workspace/ComfyUI
 
@@ -59,22 +61,87 @@ cd ComfyUI-KJNodes
 git checkout 9d7af919b91838fb22e31ad0107a6ddcf8bd7f3f
 
 echo "=== Install useful dependencies ==="
-pip install simpleeval onnxruntime-gpu piexif ultralytics accelerate opencv-python-headless imageio-ffmpeg numba PyWavelets scipy scikit-image matplotlib pandas tqdm einops || true
+/venv/main/bin/python -m pip install --upgrade pip setuptools wheel || true
+
+/venv/main/bin/python -m pip install \
+simpleeval \
+onnxruntime \
+onnxruntime-gpu \
+piexif \
+ultralytics \
+accelerate \
+opencv-python-headless \
+imageio-ffmpeg \
+numba \
+PyWavelets \
+scipy \
+scikit-image \
+matplotlib \
+pandas \
+tqdm \
+einops \
+gguf \
+ftfy \
+segment-anything \
+dill \
+diffusers \
+transformers \
+sentencepiece \
+safetensors \
+tokenizers \
+protobuf \
+huggingface_hub \
+peft \
+kornia \
+spandrel \
+soundfile \
+av \
+decord \
+timm \
+omegaconf \
+yacs \
+addict \
+mediapipe \
+filterpy \
+loguru \
+rich \
+psutil \
+|| true
 
 echo "=== Install custom node requirements ==="
 cd /workspace/ComfyUI
 
-pip install -r custom_nodes/ComfyUI-WanVideoWrapper/requirements.txt || true
-pip install -r custom_nodes/ComfyUI-WanAnimatePreprocess/requirements.txt || true
-pip install -r custom_nodes/ComfyUI-VideoHelperSuite/requirements.txt || true
-pip install -r custom_nodes/ComfyUI-segment-anything-2/requirements.txt || true
-pip install -r custom_nodes/comfyui_controlnet_aux/requirements.txt || true
-pip install -r custom_nodes/ComfyUI-KJNodes/requirements.txt || true
-pip install -r custom_nodes/was-node-suite-comfyui/requirements.txt || true
-pip install -r custom_nodes/ComfyUI-Frame-Interpolation/requirements.txt || true
-pip install -r custom_nodes/RES4LYF/requirements.txt || true
-pip install -r custom_nodes/ComfyUI-Impact-Pack/requirements.txt || true
-pip install -r custom_nodes/ComfyUI-Impact-Subpack/requirements.txt || true
+/venv/main/bin/python -m pip install -r custom_nodes/ComfyUI-WanVideoWrapper/requirements.txt || true
+/venv/main/bin/python -m pip install -r custom_nodes/ComfyUI-WanAnimatePreprocess/requirements.txt || true
+/venv/main/bin/python -m pip install -r custom_nodes/ComfyUI-VideoHelperSuite/requirements.txt || true
+/venv/main/bin/python -m pip install -r custom_nodes/ComfyUI-segment-anything-2/requirements.txt || true
+/venv/main/bin/python -m pip install -r custom_nodes/comfyui_controlnet_aux/requirements.txt || true
+/venv/main/bin/python -m pip install -r custom_nodes/ComfyUI-KJNodes/requirements.txt || true
+/venv/main/bin/python -m pip install -r custom_nodes/was-node-suite-comfyui/requirements.txt || true
+/venv/main/bin/python -m pip install -r custom_nodes/ComfyUI-Frame-Interpolation/requirements.txt || true
+/venv/main/bin/python -m pip install -r custom_nodes/RES4LYF/requirements.txt || true
+/venv/main/bin/python -m pip install -r custom_nodes/ComfyUI-Impact-Pack/requirements.txt || true
+/venv/main/bin/python -m pip install -r custom_nodes/ComfyUI-Impact-Subpack/requirements.txt || true
+
+echo "=== Reinstall critical missing packages after requirements ==="
+/venv/main/bin/python -m pip install \
+gguf \
+ftfy \
+diffusers \
+transformers \
+sentencepiece \
+segment-anything \
+dill \
+onnxruntime \
+onnxruntime-gpu \
+piexif \
+ultralytics \
+opencv-python-headless \
+accelerate \
+imageio-ffmpeg \
+numba \
+PyWavelets \
+|| true
 
 echo "=== Download Anna LoRA ==="
 wget -nc -O /workspace/ComfyUI/models/loras/anna.safetensors \
