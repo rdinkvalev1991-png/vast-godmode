@@ -14,6 +14,7 @@ export HF_XET_HIGH_PERFORMANCE=1
 export COMFYUI_MANAGER_DISABLE_AUTO_UPDATE=true
 
 PY="/venv/main/bin/python"
+HF="/venv/main/bin/hf"
 
 require_file() {
   local file="$1"
@@ -50,9 +51,6 @@ mkdir -p /workspace/ComfyUI/models/ultralytics/bbox
 mkdir -p /workspace/ComfyUI/models/ultralytics/segm
 mkdir -p /workspace/ComfyUI/models/sam2
 
-mkdir -p /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/yzd-v/DWPose
-mkdir -p /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/hr16/DWPose-TorchScript-BatchSize5
-
 cd /workspace/ComfyUI
 
 echo "=== Fix ComfyUI version ==="
@@ -70,7 +68,11 @@ git clone https://github.com/kijai/ComfyUI-WanAnimatePreprocess.git || true
 git clone https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git || true
 git clone https://github.com/chrisgoringe/cg-use-everywhere.git || true
 git clone https://github.com/kijai/ComfyUI-segment-anything-2.git || true
-git clone https://github.com/Fannovel16/comfyui_controlnet_aux.git || true
+
+# Important: do not pre-create this folder before git clone.
+rm -rf comfyui_controlnet_aux
+git clone https://github.com/Fannovel16/comfyui_controlnet_aux.git
+
 git clone https://github.com/rgthree/rgthree-comfy.git || true
 git clone https://github.com/cubiq/ComfyUI_essentials.git || true
 git clone https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git || true
@@ -118,7 +120,7 @@ sentencepiece \
 safetensors \
 tokenizers \
 protobuf \
-huggingface_hub \
+"huggingface_hub[cli]" \
 hf_xet \
 peft \
 kornia \
@@ -152,7 +154,7 @@ $PY -m pip install -r custom_nodes/RES4LYF/requirements.txt || true
 $PY -m pip install -r custom_nodes/ComfyUI-Impact-Pack/requirements.txt || true
 $PY -m pip install -r custom_nodes/ComfyUI-Impact-Subpack/requirements.txt || true
 
-echo "=== Reinstall critical missing packages after requirements ==="
+echo "=== Reinstall critical packages after requirements ==="
 $PY -m pip install \
 onnx \
 gguf \
@@ -171,8 +173,21 @@ accelerate \
 imageio-ffmpeg \
 numba \
 PyWavelets \
+"huggingface_hub[cli]" \
 hf_xet \
 || true
+
+echo "=== Verify HF CLI ==="
+if [ ! -x "$HF" ]; then
+  HF="/venv/main/bin/huggingface-cli"
+fi
+
+$HF --help >/dev/null 2>&1 || {
+  echo "❌ HF CLI not found"
+  exit 1
+}
+
+echo "✅ HF CLI OK: $HF"
 
 echo "=== Verify Python dependencies ==="
 $PY - <<'PY'
@@ -206,14 +221,17 @@ echo "=== Check ONNX providers ==="
 $PY - <<'PY'
 try:
     import onnxruntime as ort
-    print("ONNXRuntime providers:", ort.get_available_providers())
+    providers = ort.get_available_providers()
+    print("ONNXRuntime providers:", providers)
+    if "CUDAExecutionProvider" not in providers:
+        print("⚠️ WARNING: ONNXRuntime CUDAExecutionProvider is missing. Detection/preprocess may run on CPU.")
 except Exception as e:
     print("ONNXRuntime check failed:", e)
 PY
 
 echo "=== Download Anna LoRA ==="
-wget -nc -O /workspace/ComfyUI/models/loras/anna.safetensors \
-"https://huggingface.co/Rodney007/Anna/resolve/main/anna.safetensors" || true
+wget -O /workspace/ComfyUI/models/loras/anna.safetensors \
+"https://huggingface.co/Rodney007/Anna/resolve/main/anna.safetensors"
 
 require_file /workspace/ComfyUI/models/loras/anna.safetensors
 
@@ -226,7 +244,7 @@ wget -O /workspace/ComfyUI/models/clip_vision/clip_vision_h.safetensors \
 require_file /workspace/ComfyUI/models/clip_vision/clip_vision_h.safetensors
 
 echo "=== Download WAN text encoder ==="
-hf download Comfy-Org/Wan_2.1_ComfyUI_repackaged \
+$HF download Comfy-Org/Wan_2.1_ComfyUI_repackaged \
 split_files/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors \
 --local-dir /workspace/ComfyUI/models/text_encoders
 
@@ -237,7 +255,7 @@ move_if_exists \
 require_file /workspace/ComfyUI/models/text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors
 
 echo "=== Download WAN VAE ==="
-hf download Comfy-Org/Wan_2.1_ComfyUI_repackaged \
+$HF download Comfy-Org/Wan_2.1_ComfyUI_repackaged \
 split_files/vae/wan_2.1_vae.safetensors \
 --local-dir /workspace/ComfyUI/models/vae
 
@@ -248,7 +266,7 @@ move_if_exists \
 require_file /workspace/ComfyUI/models/vae/wan_2.1_vae.safetensors
 
 echo "=== Download WAN Animate diffusion model ==="
-hf download Comfy-Org/Wan_2.2_ComfyUI_Repackaged \
+$HF download Comfy-Org/Wan_2.2_ComfyUI_Repackaged \
 split_files/diffusion_models/wan2.2_animate_14B_bf16.safetensors \
 --local-dir /workspace/ComfyUI/models/diffusion_models
 
@@ -259,7 +277,7 @@ move_if_exists \
 require_file /workspace/ComfyUI/models/diffusion_models/wan2.2_animate_14B_bf16.safetensors
 
 echo "=== Download WAN T2V low noise diffusion model ==="
-hf download Comfy-Org/Wan_2.2_ComfyUI_Repackaged \
+$HF download Comfy-Org/Wan_2.2_ComfyUI_Repackaged \
 split_files/diffusion_models/wan2.2_t2v_low_noise_14B_fp16.safetensors \
 --local-dir /workspace/ComfyUI/models/diffusion_models
 
@@ -283,7 +301,7 @@ require_file /workspace/ComfyUI/models/unet/wan2.2_animate_14B_bf16.safetensors
 require_file /workspace/ComfyUI/models/unet/wan2.2_t2v_low_noise_14B_fp16.safetensors
 
 echo "=== Download WAN LoRAs ==="
-hf download Comfy-Org/Wan_2.2_ComfyUI_Repackaged \
+$HF download Comfy-Org/Wan_2.2_ComfyUI_Repackaged \
 split_files/loras/wan2.2_animate_14B_relight_lora_bf16.safetensors \
 --local-dir /workspace/ComfyUI/models/loras
 
@@ -293,18 +311,18 @@ move_if_exists \
 
 require_file /workspace/ComfyUI/models/loras/wan2.2_animate_14B_relight_lora_bf16.safetensors
 
-hf download dci05049/i2v_lightx2v_low_noise_model.safetensors \
+$HF download dci05049/i2v_lightx2v_low_noise_model.safetensors \
 i2v_lightx2v_low_noise_model.safetensors \
 --local-dir /workspace/ComfyUI/models/loras
 
 require_file /workspace/ComfyUI/models/loras/i2v_lightx2v_low_noise_model.safetensors
 
 echo "=== Download WAN Animate detection models ==="
-hf download Kijai/vitpose_comfy \
+$HF download Kijai/vitpose_comfy \
 onnx/vitpose_h_wholebody_model.onnx \
 --local-dir /workspace/ComfyUI/models/detection
 
-hf download Kijai/vitpose_comfy \
+$HF download Kijai/vitpose_comfy \
 onnx/vitpose_h_wholebody_data.bin \
 --local-dir /workspace/ComfyUI/models/detection
 
@@ -319,7 +337,7 @@ move_if_exists \
 require_file /workspace/ComfyUI/models/detection/vitpose_h_wholebody_model.onnx
 require_file /workspace/ComfyUI/models/detection/vitpose_h_wholebody_data.bin
 
-hf download Wan-AI/Wan2.2-Animate-14B \
+$HF download Wan-AI/Wan2.2-Animate-14B \
 process_checkpoint/det/yolov10m.onnx \
 --local-dir /workspace/ComfyUI/models/detection
 
@@ -329,7 +347,7 @@ move_if_exists \
 
 require_file /workspace/ComfyUI/models/detection/yolov10m.onnx
 
-echo "=== Also copy detection models to controlnet_aux ckpts ==="
+echo "=== Prepare controlnet_aux ckpts ==="
 mkdir -p /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/yzd-v/DWPose
 mkdir -p /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/hr16/DWPose-TorchScript-BatchSize5
 
@@ -337,23 +355,24 @@ cp /workspace/ComfyUI/models/detection/yolov10m.onnx \
 /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/yzd-v/DWPose/yolox_l.onnx
 
 echo "=== Download DWPose fallback models ==="
-hf download yzd-v/DWPose \
+$HF download yzd-v/DWPose \
 yolox_l.onnx \
---local-dir /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/yzd-v/DWPose || true
+--local-dir /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/yzd-v/DWPose
 
-hf download hr16/DWPose-TorchScript-BatchSize5 \
+$HF download hr16/DWPose-TorchScript-BatchSize5 \
 dw-ll_ucoco_384_bs5.torchscript.pt \
---local-dir /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/hr16/DWPose-TorchScript-BatchSize5 || true
+--local-dir /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/hr16/DWPose-TorchScript-BatchSize5
 
 require_file /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/yzd-v/DWPose/yolox_l.onnx
+require_file /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/hr16/DWPose-TorchScript-BatchSize5/dw-ll_ucoco_384_bs5.torchscript.pt
 
 echo "=== Download SAM2 model ==="
-hf download facebook/sam2.1-hiera-base-plus \
+$HF download facebook/sam2.1-hiera-base-plus \
 sam2.1_hiera_base_plus.pt \
 --local-dir /workspace/ComfyUI/models/sam2 || true
 
 echo "=== Download upscaler ==="
-wget -nc -O /workspace/ComfyUI/models/upscale_models/4x-UltraSharp.pth \
+wget -O /workspace/ComfyUI/models/upscale_models/4x-UltraSharp.pth \
 "https://huggingface.co/uwg/upscaler/resolve/main/ESRGAN/4x-UltraSharp.pth"
 
 require_file /workspace/ComfyUI/models/upscale_models/4x-UltraSharp.pth
@@ -372,6 +391,9 @@ require_file /workspace/ComfyUI/models/detection/vitpose_h_wholebody_model.onnx
 require_file /workspace/ComfyUI/models/detection/vitpose_h_wholebody_data.bin
 require_file /workspace/ComfyUI/models/detection/yolov10m.onnx
 require_file /workspace/ComfyUI/models/upscale_models/4x-UltraSharp.pth
+require_file /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/__init__.py
+require_file /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/yzd-v/DWPose/yolox_l.onnx
+require_file /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/hr16/DWPose-TorchScript-BatchSize5/dw-ll_ucoco_384_bs5.torchscript.pt
 
 echo "=== List key model folders ==="
 ls -lh /workspace/ComfyUI/models/clip_vision || true
@@ -382,6 +404,8 @@ ls -lh /workspace/ComfyUI/models/unet || true
 ls -lh /workspace/ComfyUI/models/loras || true
 ls -lh /workspace/ComfyUI/models/detection || true
 ls -lh /workspace/ComfyUI/models/upscale_models || true
+ls -lh /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/yzd-v/DWPose || true
+ls -lh /workspace/ComfyUI/custom_nodes/comfyui_controlnet_aux/ckpts/hr16/DWPose-TorchScript-BatchSize5 || true
 
 echo "=== Rodney GodMode provisioning complete ==="
 
